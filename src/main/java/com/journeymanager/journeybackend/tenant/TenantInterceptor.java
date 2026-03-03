@@ -1,64 +1,55 @@
 package com.journeymanager.journeybackend.tenant;
 
 import com.journeymanager.journeybackend.entity.Tenant;
+import com.journeymanager.journeybackend.model.user.User;
+import com.journeymanager.journeybackend.security.RoleContext;
 import com.journeymanager.journeybackend.service.TenantService;
+import com.journeymanager.journeybackend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-import com.journeymanager.journeybackend.security.RoleContext;
-import com.journeymanager.journeybackend.security.UserRole;
+import com.journeymanager.journeybackend.tenant.TenantContext;
 @Component
 public class TenantInterceptor implements HandlerInterceptor {
 
     private final TenantService tenantService;
+    private final UserService userService;
 
-    public TenantInterceptor(TenantService tenantService) {
+    public TenantInterceptor(TenantService tenantService,
+                             UserService userService) {
         this.tenantService = tenantService;
+        this.userService = userService;
     }
 
     @Override
     public boolean preHandle(HttpServletRequest request,
                              HttpServletResponse response,
                              Object handler) {
-        String roleHeader = request.getHeader("X-User-Role");
 
-        UserRole role = UserRole.USER; // default
-
-        if (roleHeader != null) {
-            try {
-                role = UserRole.valueOf(roleHeader.toUpperCase());
-            } catch (IllegalArgumentException ignored) {
-                role = UserRole.USER;
-            }
+        // 1️⃣ Resolve Tenant
+        String tenantHeader = request.getHeader("X-Tenant-Id");
+        if (tenantHeader == null || tenantHeader.isBlank()) {
+            throw new RuntimeException("Missing X-Tenant-Id header");
         }
 
-        RoleContext.setRole(role);
-        String subdomain = request.getHeader("X-Tenant-Id");
+        Tenant tenant = tenantService.getTenantBySubdomain(tenantHeader);
 
-        System.out.println("Header received: '" + subdomain + "'");
-
-        if (subdomain == null || subdomain.trim().isEmpty()) {
-            throw new RuntimeException("Tenant header missing");
-        }
-
-        subdomain = subdomain.trim();
-
-        Tenant tenant = tenantService.getTenantBySubdomain(subdomain);
-
-        // If not found, TenantService will throw RuntimeException("Tenant not found")
-
+// VERY IMPORTANT
         TenantContext.setTenantId(tenant.getId());
 
-        return true;
-    }
+        // 2️⃣ Resolve User Email
+        String email = request.getHeader("X-User-Email");
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("Missing X-User-Email header");
+        }
 
-    @Override
-    public void afterCompletion(HttpServletRequest request,
-                                HttpServletResponse response,
-                                Object handler,
-                                Exception ex) {
-        TenantContext.clear();
-        RoleContext.clear();
+        // 3️⃣ Load User from DB
+        User user = userService.loadUser(email, tenant);
+
+        // 4️⃣ Set RoleContext FROM DATABASE
+        RoleContext.setRole(user.getRole());
+
+        return true;
     }
 }

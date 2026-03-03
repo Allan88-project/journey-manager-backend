@@ -20,7 +20,6 @@ public class TripService {
     }
 
     public Trip create(Trip trip) {
-        trip.setStatus(TripStatus.PENDING);
         return tripRepository.save(trip);
     }
 
@@ -30,7 +29,6 @@ public class TripService {
 
     public Trip updateStatus(Long tripId, TripStatus newStatus) {
 
-        // ✅ RBAC Enforcement
         if (RoleContext.getRole() != UserRole.ADMIN) {
             throw new AccessDeniedException("Only ADMIN can approve or reject trips");
         }
@@ -38,7 +36,6 @@ public class TripService {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
 
-        // ✅ Lifecycle Enforcement (unchanged)
         if (trip.getStatus() != TripStatus.PENDING) {
             throw new IllegalStateException("Trip already finalized");
         }
