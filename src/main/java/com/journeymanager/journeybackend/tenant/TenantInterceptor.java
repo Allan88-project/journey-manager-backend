@@ -6,7 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-
+import com.journeymanager.journeybackend.security.RoleContext;
+import com.journeymanager.journeybackend.security.UserRole;
 @Component
 public class TenantInterceptor implements HandlerInterceptor {
 
@@ -20,7 +21,19 @@ public class TenantInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request,
                              HttpServletResponse response,
                              Object handler) {
+        String roleHeader = request.getHeader("X-User-Role");
 
+        UserRole role = UserRole.USER; // default
+
+        if (roleHeader != null) {
+            try {
+                role = UserRole.valueOf(roleHeader.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                role = UserRole.USER;
+            }
+        }
+
+        RoleContext.setRole(role);
         String subdomain = request.getHeader("X-Tenant-Id");
 
         System.out.println("Header received: '" + subdomain + "'");
@@ -46,5 +59,6 @@ public class TenantInterceptor implements HandlerInterceptor {
                                 Object handler,
                                 Exception ex) {
         TenantContext.clear();
+        RoleContext.clear();
     }
 }

@@ -3,7 +3,9 @@ package com.journeymanager.journeybackend.service;
 import com.journeymanager.journeybackend.model.trip.Trip;
 import com.journeymanager.journeybackend.model.trip.TripStatus;
 import com.journeymanager.journeybackend.repository.TripRepository;
-import com.journeymanager.journeybackend.tenant.TenantContext;
+import com.journeymanager.journeybackend.security.RoleContext;
+import com.journeymanager.journeybackend.security.UserRole;
+import com.journeymanager.journeybackend.exception.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,40 +13,38 @@ import java.util.List;
 @Service
 public class TripService {
 
-    private final TripRepository repository;
+    private final TripRepository tripRepository;
 
-    public TripService(TripRepository repository) {
-        this.repository = repository;
-    }
-
-    public List<Trip> findAll() {
-        Long tenantId = TenantContext.getTenantId();
-        return repository.findByTenantId(tenantId);
+    public TripService(TripRepository tripRepository) {
+        this.tripRepository = tripRepository;
     }
 
     public Trip create(Trip trip) {
-        return repository.save(trip);
+        trip.setStatus(TripStatus.PENDING);
+        return tripRepository.save(trip);
     }
 
-    public Trip updateStatus(Long id, TripStatus newStatus) {
+    public List<Trip> findAll() {
+        return tripRepository.findAll();
+    }
 
-        Long tenantId = TenantContext.getTenantId();
+    public Trip updateStatus(Long tripId, TripStatus newStatus) {
 
-        Trip existing = repository.findById(id)
+        // ✅ RBAC Enforcement
+        if (RoleContext.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Only ADMIN can approve or reject trips");
+        }
+
+        Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
 
-        // Ensure tenant ownership
-        if (!existing.getTenantId().equals(tenantId)) {
-            throw new RuntimeException("Unauthorized access to this trip");
+        // ✅ Lifecycle Enforcement (unchanged)
+        if (trip.getStatus() != TripStatus.PENDING) {
+            throw new IllegalStateException("Trip already finalized");
         }
 
-        // Enforce lifecycle rule
-        if (existing.getStatus() != TripStatus.PENDING) {
-            throw new RuntimeException("Only PENDING trips can be updated");
-        }
+        trip.setStatus(newStatus);
 
-        existing.setStatus(newStatus);
-
-        return repository.save(existing);
+        return tripRepository.save(trip);
     }
 }
