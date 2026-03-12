@@ -5,7 +5,6 @@ import com.journeymanager.journeybackend.model.trip.TripStatus;
 import com.journeymanager.journeybackend.model.trip.TripStateMachine;
 import com.journeymanager.journeybackend.repository.TripRepository;
 import com.journeymanager.journeybackend.security.CustomUserDetails;
-
 import jakarta.persistence.EntityNotFoundException;
 
 import org.springframework.security.core.Authentication;
@@ -19,24 +18,33 @@ import java.util.List;
 public class TripService {
 
     private final TripRepository tripRepository;
+    private final TripAuditService auditService;
 
-    public TripService(TripRepository tripRepository) {
+    public TripService(
+            TripRepository tripRepository,
+            TripAuditService auditService
+    ) {
         this.tripRepository = tripRepository;
+        this.auditService = auditService;
     }
 
     /*
      * TENANT CONTEXT
      */
 
-    private Long getCurrentTenantId() {
-
+    private CustomUserDetails getCurrentUser() {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        CustomUserDetails user =
-                (CustomUserDetails) authentication.getPrincipal();
+        return (CustomUserDetails) authentication.getPrincipal();
+    }
 
-        return user.getTenantId();
+    private Long getCurrentTenantId() {
+        return getCurrentUser().getTenantId();
+    }
+
+    private String getCurrentUsername() {
+        return getCurrentUser().getUsername();
     }
 
     /*
@@ -51,7 +59,17 @@ public class TripService {
     }
 
     public Trip create(Trip trip) {
-        return tripRepository.save(trip);
+
+        Trip saved = tripRepository.save(trip);
+
+        auditService.log(
+                saved.getId(),
+                "TRIP_CREATED",
+                getCurrentUsername(),
+                "USER"
+        );
+
+        return saved;
     }
 
     /*
@@ -79,7 +97,16 @@ public class TripService {
 
         trip.setStatus(TripStatus.APPROVED);
 
-        return tripRepository.save(trip);
+        Trip saved = tripRepository.save(trip);
+
+        auditService.log(
+                saved.getId(),
+                "TRIP_APPROVED",
+                getCurrentUsername(),
+                "ADMIN"
+        );
+
+        return saved;
     }
 
     public Trip rejectTrip(Long id) {
@@ -106,7 +133,16 @@ public class TripService {
         trip.setStatus(TripStatus.IN_PROGRESS);
         trip.setStartedAt(LocalDateTime.now());
 
-        return tripRepository.save(trip);
+        Trip saved = tripRepository.save(trip);
+
+        auditService.log(
+                saved.getId(),
+                "TRIP_STARTED",
+                getCurrentUsername(),
+                "USER"
+        );
+
+        return saved;
     }
 
     public Trip completeTrip(Long tripId) {
@@ -118,7 +154,16 @@ public class TripService {
         trip.setStatus(TripStatus.COMPLETED);
         trip.setCompletedAt(LocalDateTime.now());
 
-        return tripRepository.save(trip);
+        Trip saved = tripRepository.save(trip);
+
+        auditService.log(
+                saved.getId(),
+                "TRIP_COMPLETED",
+                getCurrentUsername(),
+                "USER"
+        );
+
+        return saved;
     }
 
     public Trip emergencyTrip(Long tripId) {
@@ -131,4 +176,5 @@ public class TripService {
 
         return tripRepository.save(trip);
     }
+
 }
