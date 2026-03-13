@@ -6,6 +6,8 @@ import com.journeymanager.journeybackend.trip.domain.TripStatus;
 import com.journeymanager.journeybackend.trip.domain.TripStateMachine;
 import com.journeymanager.journeybackend.repository.TripRepository;
 import com.journeymanager.journeybackend.security.CustomUserDetails;
+import com.journeymanager.journeybackend.trip.domain.event.TripCreatedEvent;
+
 import jakarta.persistence.EntityNotFoundException;
 
 import org.springframework.security.core.Authentication;
@@ -61,6 +63,9 @@ public class TripService {
 
     public Trip create(Trip trip) {
 
+        eventPublisher.publish(
+                new TripCreatedEvent(saved.getId(), getCurrentUsername())
+        );
         Trip saved = tripRepository.save(trip);
 
         auditService.log(
