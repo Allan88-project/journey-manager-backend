@@ -1,4 +1,4 @@
-package com.journeymanager.journeybackend.model.audit;
+package com.journeymanager.journeybackend.audit.domain;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
