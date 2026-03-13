@@ -33,6 +33,17 @@ public class Trip {
     @Column
     private LocalDateTime completedAt;
 
+    /*
+     * Navigation coordinates (for Google Maps / Waze)
+     * Nullable so existing trips remain valid
+     */
+
+    @Column(name = "destination_latitude")
+    private Double destinationLatitude;
+
+    @Column(name = "destination_longitude")
+    private Double destinationLongitude;
+
     public Trip() {}
 
     @PrePersist
@@ -102,4 +113,21 @@ public class Trip {
     public void setCompletedAt(LocalDateTime completedAt) {
         this.completedAt = completedAt;
     }
+
+    public Double getDestinationLatitude() {
+        return destinationLatitude;
+    }
+
+    public void setDestinationLatitude(Double destinationLatitude) {
+        this.destinationLatitude = destinationLatitude;
+    }
+
+    public Double getDestinationLongitude() {
+        return destinationLongitude;
+    }
+
+    public void setDestinationLongitude(Double destinationLongitude) {
+        this.destinationLongitude = destinationLongitude;
+    }
+
 }
