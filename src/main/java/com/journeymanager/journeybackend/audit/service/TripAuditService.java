@@ -1,4 +1,4 @@
-package com.journeymanager.journeybackend.service;
+package com.journeymanager.journeybackend.audit.service;
 
 import com.journeymanager.journeybackend.audit.domain.TripAudit;
 import com.journeymanager.journeybackend.audit.repository.TripAuditRepository;
