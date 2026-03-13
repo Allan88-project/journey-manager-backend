@@ -1,9 +1,9 @@
 package com.journeymanager.journeybackend.analytics.service;
 
 import com.journeymanager.journeybackend.analytics.dto.AdminAnalyticsResponse;
-import com.journeymanager.journeybackend.trip.domain.TripStatus;
 import com.journeymanager.journeybackend.repository.TripRepository;
 import com.journeymanager.journeybackend.security.CustomUserDetails;
+import com.journeymanager.journeybackend.trip.domain.TripStatus;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,11 +12,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class AdminAnalyticsService {
 
+    private volatile AdminAnalyticsResponse cachedAnalytics;
+
     private final TripRepository tripRepository;
 
     public AdminAnalyticsService(TripRepository tripRepository) {
         this.tripRepository = tripRepository;
     }
+
+    /*
+     * TENANT CONTEXT
+     */
 
     private Long getCurrentTenantId() {
 
@@ -29,7 +35,33 @@ public class AdminAnalyticsService {
         return user.getTenantId();
     }
 
+    /*
+     * PUBLIC API
+     */
+
     public AdminAnalyticsResponse getAnalytics() {
+
+        if (cachedAnalytics != null) {
+            return cachedAnalytics;
+        }
+
+        cachedAnalytics = computeAnalytics();
+        return cachedAnalytics;
+    }
+
+    /*
+     * CACHE REFRESH (used by event listeners)
+     */
+
+    public void refreshCache() {
+        cachedAnalytics = computeAnalytics();
+    }
+
+    /*
+     * INTERNAL ANALYTICS CALCULATION
+     */
+
+    private AdminAnalyticsResponse computeAnalytics() {
 
         Long tenantId = getCurrentTenantId();
 
@@ -63,4 +95,5 @@ public class AdminAnalyticsService {
                 emergency
         );
     }
+
 }
