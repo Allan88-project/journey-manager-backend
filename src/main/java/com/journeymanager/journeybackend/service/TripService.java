@@ -1,12 +1,15 @@
 package com.journeymanager.journeybackend.service;
 
 import com.journeymanager.journeybackend.audit.service.TripAuditService;
-import com.journeymanager.journeybackend.trip.domain.Trip;
-import com.journeymanager.journeybackend.trip.domain.TripStatus;
-import com.journeymanager.journeybackend.trip.domain.TripStateMachine;
+import com.journeymanager.journeybackend.common.event.EventPublisher;
 import com.journeymanager.journeybackend.repository.TripRepository;
 import com.journeymanager.journeybackend.security.CustomUserDetails;
+import com.journeymanager.journeybackend.trip.domain.Trip;
+import com.journeymanager.journeybackend.trip.domain.TripStateMachine;
+import com.journeymanager.journeybackend.trip.domain.TripStatus;
+import com.journeymanager.journeybackend.trip.domain.event.TripCompletedEvent;
 import com.journeymanager.journeybackend.trip.domain.event.TripCreatedEvent;
+import com.journeymanager.journeybackend.trip.domain.event.TripStartedEvent;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -22,13 +25,16 @@ public class TripService {
 
     private final TripRepository tripRepository;
     private final TripAuditService auditService;
+    private final EventPublisher eventPublisher;
 
     public TripService(
             TripRepository tripRepository,
-            TripAuditService auditService
+            TripAuditService auditService,
+            EventPublisher eventPublisher
     ) {
         this.tripRepository = tripRepository;
         this.auditService = auditService;
+        this.eventPublisher = eventPublisher;
     }
 
     /*
@@ -63,11 +69,14 @@ public class TripService {
 
     public Trip create(Trip trip) {
 
+        Trip saved = tripRepository.save(trip);
+
+        // Publish domain event
         eventPublisher.publish(
                 new TripCreatedEvent(saved.getId(), getCurrentUsername())
         );
-        Trip saved = tripRepository.save(trip);
 
+        // Keep existing audit logging (non-breaking)
         auditService.log(
                 saved.getId(),
                 "TRIP_CREATED",
@@ -140,7 +149,9 @@ public class TripService {
         trip.setStartedAt(LocalDateTime.now());
 
         Trip saved = tripRepository.save(trip);
-
+        eventPublisher.publish(
+                new TripStartedEvent(saved.getId(), getCurrentUsername())
+        );
         auditService.log(
                 saved.getId(),
                 "TRIP_STARTED",
@@ -161,7 +172,9 @@ public class TripService {
         trip.setCompletedAt(LocalDateTime.now());
 
         Trip saved = tripRepository.save(trip);
-
+        eventPublisher.publish(
+                new TripCompletedEvent(saved.getId(), getCurrentUsername())
+        );
         auditService.log(
                 saved.getId(),
                 "TRIP_COMPLETED",
