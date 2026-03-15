@@ -1,5 +1,7 @@
 package com.journeymanager.journeybackend.security;
 
+import com.journeymanager.journeybackend.tenant.TenantContext;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +34,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // DEBUG: show incoming Authorization header
         String authHeader = request.getHeader("Authorization");
         System.out.println("AUTH HEADER RECEIVED: " + authHeader);
 
@@ -80,6 +81,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             .setAuthentication(authentication);
 
                     System.out.println("SECURITY CONTEXT AUTHENTICATED");
+
+                    // 🔹 CRITICAL FIX — Set tenant for this request
+                    TenantContext.setTenantId(userDetails.getTenantId());
+
+                    System.out.println("TENANT CONTEXT SET: " + userDetails.getTenantId());
                 }
             }
 
@@ -88,6 +94,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             System.out.println("JWT FILTER ERROR: " + e.getMessage());
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // 🔹 Always clear tenant after request
+            TenantContext.clear();
+        }
     }
 }

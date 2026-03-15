@@ -10,7 +10,7 @@ import com.journeymanager.journeybackend.trip.domain.TripStatus;
 import com.journeymanager.journeybackend.trip.domain.event.TripCompletedEvent;
 import com.journeymanager.journeybackend.trip.domain.event.TripCreatedEvent;
 import com.journeymanager.journeybackend.trip.domain.event.TripStartedEvent;
-
+import com.journeymanager.journeybackend.trip.domain.event.TripApprovedEvent;
 import jakarta.persistence.EntityNotFoundException;
 
 import org.springframework.security.core.Authentication;
@@ -106,10 +106,9 @@ public class TripService {
         TripStateMachine.validateApprove(trip);
 
         trip.setStatus(TripStatus.APPROVED);
-
         Trip saved = tripRepository.save(trip);
 
-
+        eventPublisher.publish(new TripApprovedEvent(saved.getId()));
 
         return saved;
     }
